@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notes Incubator L1 September</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{--nav-bg:#0B3B2E;--nav-fg:#FFD3A5}
+.site-nav{background:var(--nav-bg);color:var(--nav-fg);font:600 13px "Plus Jakarta Sans",system-ui,sans-serif;display:flex;gap:6px;flex-wrap:wrap;padding:10px max(16px,env(safe-area-inset-left,0px))}
+.site-nav a{color:var(--nav-fg);text-decoration:none;padding:4px 12px;border-radius:999px;border:1.5px solid transparent}
+.site-nav a[aria-current="page"]{border-color:var(--nav-fg)}
+.site-nav a:focus-visible{outline:2px solid var(--nav-fg);outline-offset:2px}
+</style>
+<style>
+:root{--page-bg:#FFF1E2}
+@media (prefers-color-scheme: dark){:root{--page-bg:#0C231C;color-scheme:dark}}
+body{margin:0;background:var(--page-bg)}
+#dash-root{max-width:1100px;margin:0 auto;padding:16px max(12px,env(safe-area-inset-right,0px)) 40px max(12px,env(safe-area-inset-left,0px))}
+</style>
+<script src="assets/d3.v7.9.0.min.js"></script>
+<script src="data/data.js"></script>
+<script src="assets/dash-shim.js"></script>
+</head>
+<body>
+<nav class="site-nav" aria-label="Halaman"><a href="index.html">Pemenang &amp; Ranking</a><a href="notes.html" aria-current="page">Notes per Creator</a></nav>
+<div id="dash-root">
+<style>
+  .lb { font-family: var(--font-anthropic-sans); display: flex; flex-direction: column; gap: var(--cds-gap-lg); }
+  .lb-head h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .lb-take { font-size: var(--cds-font-size-body); margin: var(--cds-gap-xs) 0 0; max-width: 70ch; }
+  .lb-scope { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0 0; max-width: 80ch; }
+  .lb-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--cds-gap-md); }
+  .lb-tile, .lb-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+  .lb-tile .lbl, .lbl { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .lb-tile .num { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; margin-top: var(--cds-gap-xs); min-height: 1.3em; }
+  .lb-tile .sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-top: var(--cds-gap-xs); }
+  .lb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+  .lb-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .lb-card h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: 0 0 var(--cds-gap-sm); }
+  .lb-card .note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0 var(--cds-gap-md); }
+  .lb table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .lb th, .lb td { text-align: left; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+  .lb th { font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); position: sticky; top: 0; background: var(--color-panel); white-space: nowrap; z-index: 1; }
+  .lb td { white-space: nowrap; }
+  .lb td.wrap { white-space: normal; min-width: 18rem; max-width: 32rem; }
+  .lb th.n, .lb td.n { text-align: right; }
+  .lb th button.sort { all: unset; cursor: pointer; }
+  .lb th button.sort:focus-visible, .user:focus-visible, .chipbtn:focus-visible { outline: 2px solid var(--cds-chart-axis); outline-offset: 2px; }
+  .lb td.tot { font-weight: 600; }
+  .lb .scroll { max-height: 34rem; overflow: auto; }
+  .lb .wide { overflow-x: auto; }
+  .user { all: unset; cursor: pointer; color: var(--color-fg); text-decoration: underline; text-decoration-color: var(--cds-chart-axis); text-underline-offset: 3px; font-weight: 600; }
+  .user:hover { text-decoration-color: currentColor; }
+  .tools { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; margin-bottom: var(--cds-gap-sm); }
+  .lb-search, .lb-select { padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); font: inherit; font-size: var(--cds-font-size-caption); max-width: 100%; }
+  .lb-search { width: 18rem; }
+  .pill { display: inline-block; padding: 0 var(--cds-pad-sm); border-radius: 999px; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); white-space: nowrap; }
+  .ok { color: var(--color-ok); } .warn { color: var(--color-warn); } .bad { color: var(--color-bad); } .muted { color: var(--color-fg-muted); }
+  .chipbtn { all: unset; cursor: pointer; font-size: var(--cds-font-size-caption); padding: 2px var(--cds-pad-sm); border-radius: 999px; border: 1px solid var(--color-border-line); }
+  .chipbtn[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+  .chart { position: relative; min-height: 220px; }
+  .tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 2; }
+  .tip .t { color: var(--cds-text-secondary); }
+  .sw { display: inline-block; width: .6rem; height: .6rem; border-radius: 2px; margin-right: .3rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: var(--cds-gap-sm); }
+  .rules { font-size: var(--cds-font-size-caption); line-height: 1.55; margin: 0; padding-left: 1.1rem; }
+  .rules li { margin-bottom: var(--cds-gap-xs); }
+  /* creator detail */
+  .cr-empty { font-size: var(--cds-font-size-body); color: var(--color-fg-muted); padding: var(--cds-pad-lg) 0; }
+  .cr-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--cds-gap-md); align-items: flex-end; }
+  .cr-name { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; overflow-wrap: anywhere; }
+  .cr-meta { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-top: var(--cds-gap-xs); }
+  .cr-total { text-align: right; }
+  .cr-total .big { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; }
+  .cr-missions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: var(--cds-gap-sm); margin-top: var(--cds-gap-md); }
+  .mcard { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); background: var(--color-bg); min-width: 0; }
+  .mcard .pts { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-heading); font-variant-numeric: tabular-nums; margin: var(--cds-gap-xs) 0; }
+  .mcard .st { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); overflow-wrap: anywhere; }
+  .cr-note { margin-top: var(--cds-gap-md); font-size: var(--cds-font-size-caption); padding: var(--cds-pad-sm) var(--cds-pad-md); border-radius: var(--cds-radius); border: 1px dashed var(--color-border-line); }
+  .cr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--cds-gap-md); margin-top: var(--cds-gap-lg); }
+  .att { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); }
+  .att span { font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); }
+  .tags { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); font-size: var(--cds-font-size-caption); }
+  .tags span { border: 1px solid var(--color-border-line); border-radius: 999px; padding: 0 var(--cds-pad-sm); }
+  .vids { display: flex; flex-direction: column; gap: var(--cds-gap-sm); margin-top: var(--cds-gap-sm); }
+  .vcard { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); background: var(--color-bg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+  .vcard.s-telat { border-left: 4px solid var(--color-warn); }
+  .vcard.s-gagal { border-left: 4px solid var(--color-warn); }
+  .vcard.s-kosong { border-left: 4px solid var(--cds-chart-muted); }
+  .vcard.s-ok { border-left: 4px solid var(--color-ok); }
+  .vhead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; justify-content: space-between; }
+  .vtitle { font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-body); }
+  .vsub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .vmeta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-xs) var(--cds-gap-md); font-size: var(--cds-font-size-caption); }
+  .vmeta div { min-width: 0; overflow-wrap: anywhere; }
+  .vmeta b { display: block; font-weight: 400; color: var(--color-fg-muted); }
+  .vlink { font-size: var(--cds-font-size-caption); overflow-wrap: anywhere; }
+  .vlink a { color: var(--color-fg); }
+  .cks { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: 4px; }
+  .ck { font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); border-radius: 6px; padding: 2px 6px; display: flex; gap: 6px; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ck i { font-style: normal; font-weight: 700; width: 1.1rem; text-align: center; flex: none; }
+  .ck.no { border-color: var(--color-bad); }
+  .nbox { background: var(--color-panel); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); }
+  .nhead { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); margin-bottom: var(--cds-gap-xs); }
+  .kurang { font-size: var(--cds-font-size-caption); margin: 0; padding-left: 1.1rem; line-height: 1.55; max-width: 75ch; }
+  .kurang li { margin-bottom: 2px; }
+  .vnotes { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.5; }
+  .vnotes b { color: var(--color-fg); font-weight: 600; }
+  [data-dash-source-state=empty] { color: transparent; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  .fail { display: flex; align-items: center; justify-content: center; gap: .4rem; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); min-height: inherit; }
+  .fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+
+  /* Brand theme (sama dengan halaman pengumuman): peach + hijau tua + kuning + tomat */
+  .lb {
+    --sb-bg:#FFF1E2; --sb-band:#FFD3A5; --sb-ink:#0B3B2E; --sb-muted:#5B6B5F; --sb-line:#E9C9A6; --sb-card:#FFFAF4;
+    --sb-tomato:#E5492A; --sb-sun:#FFC22E; --sb-mint:#2F7D5B; --sb-chip:#F5E1CB; --sb-warn:#B86A00;
+    --sb-display:"Bricolage Grotesque", "Plus Jakarta Sans", var(--font-anthropic-sans, system-ui), system-ui, sans-serif;
+    --sb-body:"Plus Jakarta Sans", var(--font-anthropic-sans, system-ui), system-ui, -apple-system, "Segoe UI", sans-serif;
+    --color-panel: var(--sb-card); --color-bg: var(--sb-bg); --color-fg: var(--sb-ink); --color-fg-muted: var(--sb-muted);
+    --color-border-line: var(--sb-line); --color-ok: var(--sb-mint); --color-warn: var(--sb-warn); --color-bad: var(--sb-tomato);
+    --font-anthropic-serif: var(--sb-display);
+    --cds-font-size-caption: 12.5px; --cds-font-size-body: 15px; --cds-font-size-heading: 20px; --cds-font-size-title: 34px;
+    --cds-font-weight-medium: 700;
+    --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 12px; --cds-gap-lg: 24px;
+    --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 16px;
+    --cds-radius: 14px; --cds-chart-axis: var(--sb-ink); --cds-chart-grid: var(--sb-line); --cds-chart-muted: #C9AE90;
+    --cds-surface-popover: var(--sb-card); --cds-border: var(--sb-ink); --cds-shadow-popover: 0 6px 18px rgba(11,59,46,.18);
+    --cds-text-secondary: var(--sb-muted); --cds-dur-slow: .3s;
+    background: var(--sb-bg); color: var(--sb-ink); font-family: var(--sb-body); font-size: 15px; line-height: 1.5;
+    border-radius: 18px; padding: 0 0 24px;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lb {
+    --sb-bg:#0C231C; --sb-band:#123528; --sb-ink:#FFE7CF; --sb-muted:#B5C2B8; --sb-line:#24493B; --sb-card:#10302A;
+    --sb-tomato:#FF7A59; --sb-sun:#FFC94D; --sb-mint:#6FD3A3; --sb-chip:#1A4234; --sb-warn:#FFB347; --cds-chart-muted:#3E6A58; } }
+  :root[data-theme="dark"] .lb {
+    --sb-bg:#0C231C; --sb-band:#123528; --sb-ink:#FFE7CF; --sb-muted:#B5C2B8; --sb-line:#24493B; --sb-card:#10302A;
+    --sb-tomato:#FF7A59; --sb-sun:#FFC94D; --sb-mint:#6FD3A3; --sb-chip:#1A4234; --sb-warn:#FFB347; --cds-chart-muted:#3E6A58; }
+  .lb > section, .lb > .lb-grid { margin-inline: 16px; }
+  .lb-head { background: var(--sb-band); border-bottom: 2px solid var(--sb-ink); border-radius: 18px 18px 0 0; padding: 26px 20px 22px; display: grid; gap: 8px; }
+  .lb-head .eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--sb-muted); }
+  .lb-head h1 { font-family: var(--sb-display); font-weight: 800; font-size: clamp(28px, 5.5vw, 46px); line-height: 1.02; letter-spacing: -.01em; }
+  .lb-head h1 em { font-style: normal; color: var(--sb-tomato); }
+  .lb-head .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .lb-head .meta span { font-size: 12.5px; font-weight: 600; border: 1.5px solid var(--sb-ink); border-radius: 999px; padding: 3px 11px; background: var(--sb-card); }
+  .lb-head .lb-scope { color: var(--sb-ink); opacity: .8; font-size: 13.5px; margin: 4px 0 0; }
+  .lb-card h2 { font-family: var(--sb-display); font-weight: 800; font-size: 22px; }
+  .lb-tile { border: 2px solid var(--sb-ink); }
+  .lb-tile .num { font-weight: 800; font-size: 34px; }
+  .lb-tile:first-child { background: var(--sb-sun); color: #0B3B2E; }
+  .lb-tile:first-child .lbl, .lb-tile:first-child .sub { color: #0B3B2E; opacity: .75; }
+  .lb-card { border: 1.5px solid var(--sb-line); }
+  #creator.lb-card { border: 2px solid var(--sb-ink); }
+  .lb th { background: var(--sb-card); color: var(--sb-muted); }
+  .user { text-decoration-color: var(--sb-tomato); text-decoration-thickness: 2px; }
+  .chipbtn[aria-pressed="true"] { background: var(--sb-ink); color: var(--sb-bg); border-color: var(--sb-ink); }
+  .pill { border-width: 1.5px; font-weight: 600; }
+  .mcard { border: 1.5px solid var(--sb-line); background: var(--sb-bg); }
+  .mcard .pts { font-family: var(--sb-display); font-weight: 800; font-size: 26px; }
+  .cr-name { font-family: var(--sb-display); font-weight: 800; }
+  .cr-total .big { font-family: var(--sb-display); font-weight: 800; font-size: 40px; color: var(--sb-tomato); }
+  .cr-note { border: 1.5px dashed var(--sb-ink); background: var(--sb-chip); }
+  .vcard { background: var(--sb-card); border: 1.5px solid var(--sb-line); }
+  .vcard.s-ok { border-left: 5px solid var(--sb-mint); }
+  .vcard.s-telat { border-left: 5px solid var(--sb-warn); }
+  .vcard.s-gagal { border-left: 5px solid var(--sb-tomato); }
+  .vcard.s-kosong { border-left: 5px solid var(--cds-chart-muted); }
+  .nbox { background: var(--sb-chip); }
+  .lb-search, .lb-select { border: 1.5px solid var(--sb-ink); background: var(--sb-card); color: var(--sb-ink); border-radius: 10px; }
+  .rules .pt { font-weight: 700; color: var(--sb-tomato); }
+  .lb-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 520px) { .lb-tiles .num { font-size: 26px; } .lb-tile { padding: 12px; } }
+</style>
+
+<div class="lb">
+  <header class="lb-head" id="ringkasan">
+    <div class="eyebrow">Social Bread × TikTok Go Dining · Level 1 Creator Incubation Program</div>
+    <h1>Notes Incubator <em>L1 September</em></h1>
+    <div class="meta"><span>Challenge 15 Sep – 14 Okt 2026</span><span>15 jadwal video</span><span>5 Meet Up</span><span>31 creator</span></div>
+    <p class="lb-scope">Rekap: video Week 1–4 (15 jadwal, 15 Sep – 14 Okt), Meet Up 1–5, dan Dining GMV September. Tap username untuk lihat semua video dan notes per video.</p>
+  </header>
+
+  <section class="lb-tiles" id="angka">
+    <div class="lb-tile"><div class="lbl">Peserta terdaftar</div><div class="num dash-skeleton" data-source="ringkasan" data-field="peserta">—</div><div class="sub">sheet CREATOR FIX</div></div>
+    <div class="lb-tile"><div class="lbl">Sudah submit video</div><div class="num dash-skeleton" data-source="ringkasan" data-field="aktif">—</div><div class="sub">minimal 1 video wajib</div></div>
+    <div class="lb-tile"><div class="lbl">Video valid</div><div class="num dash-skeleton" data-source="ringkasan" data-field="video_valid">—</div><div class="sub">12/12 checklist, tidak telat</div></div>
+  </section>
+
+  <section class="lb-card" id="semua">
+    <h2>Semua creator</h2>
+    <p class="note">Tap username untuk detail. Klik judul kolom untuk mengurutkan. Mission 1, 2 dan 4 baru dapat poin penuh kalau selesai.</p>
+    <div class="tools"><input class="lb-search" id="lb-search" type="search" placeholder="Cari username, nama, provinsi" aria-label="Cari creator"></div>
+    <div class="scroll">
+      <table data-source="leaderboard" data-row-key="username" id="all-table">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="lb-card" id="creator">
+    <div class="tools">
+      <h2 style="margin-right:auto">Detail creator</h2>
+      <select class="lb-select" id="cr-pick" aria-label="Pilih creator" data-source="leaderboard"></select>
+    </div>
+    <div id="cr-body"><p class="cr-empty">Tap username di tabel Semua creator, atau pilih dari daftar di atas.</p></div>
+  </section>
+
+  <section class="lb-card" id="semua-video">
+    <h2>Semua video</h2>
+    <p class="note">Satu baris per video atau jadwal wajib yang kosong. Pakai filter untuk cari yang perlu di-callout.</p>
+    <div class="tools">
+      <select class="lb-select" id="sv-status" aria-label="Filter status">
+        <option value="">Semua status</option><option>Dihitung</option><option>Butuh improvement</option><option>Telat</option><option>Belum submit</option>
+      </select>
+      <select class="lb-select" id="sv-tipe" aria-label="Filter tipe"><option value="">Wajib + Bonus</option><option>Wajib</option><option>Bonus</option></select>
+      <input class="lb-search" id="sv-q" type="search" placeholder="Cari username, merchant, checklist" aria-label="Cari video">
+      <span class="lbl" id="sv-count"></span>
+    </div>
+    <div class="scroll">
+      <table data-source="videos" data-row-key="id" id="sv-table">
+        <thead><tr>
+          <th data-field="username">Username</th><th data-field="video">Video</th><th data-field="jadwal">Jadwal</th><th data-field="submit">Submit</th>
+          <th data-field="merchant">Merchant</th><th data-field="status">Status</th><th data-field="checklist_lolos">Checklist</th>
+          <th data-field="poin">Poin</th><th data-field="notes_video">Notes untuk video ini</th><th data-field="link">Link</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="lb-grid">
+    <div class="lb-card" id="status-week">
+      <h2>Status video per week</h2>
+      <p class="note">Video wajib + bonus yang disubmit. Telat tidak dihitung.</p>
+      <div class="legend" id="wk-legend"></div>
+      <div class="chart" id="wk-chart" data-source="status_week"></div>
+    </div>
+    <div class="lb-card" id="checklist">
+      <h2>Poin checklist yang paling sering butuh improvement</h2>
+      <p class="note">Jumlah video yang butuh improvement di tiap poin checklist.</p>
+      <div class="chart" id="ck-chart" data-source="checklist_gagal"></div>
+    </div>
+  </section>
+
+  <section class="lb-card" id="aturan">
+    <h2>Aturan yang dipakai</h2>
+    <p class="note">Mengacu ke Buku Panduan Creator L1 (September).</p>
+    <ul class="rules">
+      <li>Mission 1 (40): 15 video wajib sesuai jadwal, semua lolos 12 checklist. Tanpa poin parsial.</li>
+      <li>Mission 2 (20): minimal 5 Top Merchant provinsi domisili, masing-masing minimal 2 video (wajib + bonus yang tidak telat). Outlet boleh di kota mana pun selama masih satu provinsi; Yogyakarta (DIY) tidak termasuk Jawa Tengah.</li>
+      <li>Mission 3 (25): porsi Dining (F&amp;B) GMV minimal 70% dari total GMV. Data dari tim DA (berbasis September).</li>
+      <li>Mission 4 (15): hadir di kelima Meet Up.</li>
+      <li>Submit tercepat: +10 per jadwal upload (15 jadwal), untuk submission wajib valid paling awal di jadwal itu.</li>
+      <li>Video bonus: +5 per video yang lolos 12 checklist dan tidak telat, maksimal 15 per bulan.</li>
+      <li>Telat (submit lewat 23:59 di tanggal jadwal) tidak dihitung untuk poin apa pun.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+dash.calc('ringkasan', {
+  inputs: ['leaderboard', 'status_week'],
+  title: 'Ringkasan peserta',
+  description: 'Jumlah peserta, yang sudah submit, dan total video valid.',
+  fn: (leaderboard, status_week) => [{
+    peserta: leaderboard.length,
+    aktif: leaderboard.filter(r => Number(r.wajib_submit) > 0).length,
+    video_valid: status_week.reduce((s, r) => s + Number(r.valid), 0)
+  }]
+});
+
+window.LB = { sort: 'username', dir: 1, q: '', vfilter: 'all', sv: { status: '', tipe: '', q: '' } };
+const fmt = d3.format(',');
+const enc = encodeURIComponent;
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined && txt !== null) e.textContent = txt; return e; };
+const pickCreator = (u) => { dash.setParams({ creator: u }); const s = document.getElementById('creator'); s.scrollIntoView({ behavior: 'smooth', block: 'start' }); dash.setLink('creator'); };
+const userBtn = (u) => { const b = el('button', 'user', u); b.type = 'button'; b.addEventListener('click', () => pickCreator(u)); return b; };
+const statusCls = s => s === 'Dihitung' ? 'ok' : s === 'Telat' ? 'warn' : s === 'Butuh improvement' ? 'warn' : 'muted';
+function failLine(box) { box.textContent = ''; box.appendChild(el('div', 'fail', 'Failed to load')); }
+
+const COLS = [
+  { f: 'username', t: 'Username' }, { f: 'provinsi', t: 'Provinsi' },
+  { f: 'wajib_valid', t: 'Wajib valid', n: true }, { f: 'wajib_kosong', t: 'Belum submit', n: true }, { f: 'video_telat', t: 'Telat', n: true },
+  { f: 'm2_merchant', t: 'Top Merchant ≥2', n: true }, { f: 'm3_poin', t: 'Dining GMV (poin)', n: true },
+  { f: 'meetup_hadir', t: 'Meet Up', n: true }, { f: 'submit_tercepat', t: 'Tercepat (poin)', n: true },
+  { f: 'bonus_poin', t: 'Bonus', n: true }, { f: 'total', t: 'Total', n: true }
+];
+
+
+function drawAll(lbd) {
+  const st = window.LB;
+  const thr = document.querySelector('#all-table thead tr');
+  if (!thr.children.length) {
+    COLS.forEach(c => {
+      const th = el('th', c.n ? 'n' : ''); th.dataset.field = c.f;
+      const b = el('button', 'sort', c.t); b.type = 'button';
+      b.addEventListener('click', () => { st.dir = st.sort === c.f ? -st.dir : (c.n ? -1 : 1); st.sort = c.f; drawAll(dash.data('leaderboard')); });
+      th.appendChild(b); thr.appendChild(th);
+    });
+    document.getElementById('lb-search').addEventListener('input', e => { st.q = e.target.value.toLowerCase(); drawAll(dash.data('leaderboard')); });
+  }
+  [...thr.children].forEach(th => th.setAttribute('aria-sort', th.dataset.field === st.sort ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'));
+  const tb = document.querySelector('#all-table tbody'); tb.textContent = '';
+  if (lbd.status !== 'ok') return;
+  const col = COLS.find(c => c.f === st.sort);
+  const rows = lbd.data.filter(r => !st.q || (r.username + ' ' + r.provinsi + ' ' + r.nama).toLowerCase().includes(st.q));
+  rows.sort((a, b) => { const x = col.n ? Number(a[st.sort]) : String(a[st.sort]).toLowerCase(); const y = col.n ? Number(b[st.sort]) : String(b[st.sort]).toLowerCase(); return (x > y ? 1 : x < y ? -1 : 0) * st.dir || String(a.username).localeCompare(String(b.username), 'id', { sensitivity: 'base' }); });
+  rows.forEach(r => {
+    const tr = tb.insertRow();
+    COLS.forEach(c => {
+      const td = tr.insertCell();
+      if (c.f === 'username') td.appendChild(userBtn(r.username));
+      else td.textContent = c.n ? fmt(r[c.f]) : r[c.f];
+      if (c.n) td.className = c.f === 'total' ? 'n tot' : 'n';
+    });
+  });
+}
+
+function drawPicker(lbd, cur) {
+  const sel = document.getElementById('cr-pick');
+  if (!sel.dataset.wired) { sel.dataset.wired = '1'; sel.addEventListener('change', () => dash.setParams({ creator: sel.value || null })); }
+  const users = lbd.status === 'ok' ? lbd.data.map(r => r.username).sort() : [];
+  if (sel.options.length !== users.length + 1) sel.replaceChildren(new Option('Pilih creator…', ''), ...users.map(u => new Option(u, u)));
+  sel.value = cur || '';
+}
+
+function missionCard(label, r, ptsField, ptsText, stField, stText) {
+  const c = el('div', 'mcard');
+  c.appendChild(el('div', 'lbl', label));
+  const p = el('div', 'pts', ptsText);
+  if (ptsField) { p.dataset.source = 'leaderboard'; p.dataset.field = ptsField; p.dataset.where = 'username=' + enc(r.username); }
+  c.appendChild(p);
+  const s = el('div', 'st', stText);
+  if (stField) { s.dataset.source = 'leaderboard'; s.dataset.field = stField; s.dataset.where = 'username=' + enc(r.username); }
+  c.appendChild(s);
+  return c;
+}
+
+const CKS = [['ck_hook', 'Hook'], ['ck_display', 'F&B Display'], ['ck_tasting', 'F&B Tasting'], ['ck_environment', 'Environment'], ['ck_price', 'Price'], ['ck_promotion', 'Promotion'],
+  ['ck_redeem', 'Redeem Process'], ['ck_multioutlet', 'Multi-Outlet'], ['ck_subtitle', 'Subtitle'], ['ck_realperson', 'Real Person'], ['ck_voiceover', 'Voice Over'], ['ck_cover', 'Cover']];
+
+function videoCard(v) {
+  const cls = { 'Dihitung': 's-ok', 'Telat': 's-telat', 'Butuh improvement': 's-gagal', 'Belum submit': 's-kosong' }[v.status] || '';
+  const card = el('article', 'vcard ' + cls);
+  card.dataset.source = 'videos'; card.dataset.where = 'id=' + enc(v.id);
+  const head = el('div', 'vhead');
+  const left = el('div');
+  left.appendChild(el('div', 'vtitle', v.video + ' · ' + v.tipe));
+  left.appendChild(el('div', 'vsub', v.week + ' · jadwal ' + v.jadwal + (v.submit !== '—' ? ' · submit ' + v.submit : '')));
+  head.appendChild(left);
+  const right = el('div', 'tags');
+  right.appendChild(el('span', statusCls(v.status), v.status));
+  if (v.checklist_lolos !== '—') right.appendChild(el('span', '', 'Checklist ' + v.checklist_lolos));
+  right.appendChild(el('span', v.poin.startsWith('+') || v.poin.startsWith('Dihitung') ? 'ok' : 'muted', v.poin));
+  head.appendChild(right);
+  card.appendChild(head);
+  if (v.status !== 'Belum submit') {
+    const meta = el('div', 'vmeta');
+    const m = (k, val) => { const d = el('div'); d.appendChild(el('b', '', k)); d.append(val); meta.appendChild(d); };
+    m('Merchant (di form)', v.merchant);
+    m('Brand', v.brand);
+    m('Top Merchant provinsi', v.top_merchant === 'Ya' ? 'Ya, dihitung Mission 2' : 'Tidak');
+    card.appendChild(meta);
+    const lk = el('div', 'vlink'); lk.append('Link: ');
+    const a = el('a', '', v.link); a.href = v.link; a.target = '_blank'; a.rel = 'noopener'; lk.appendChild(a);
+    card.appendChild(lk);
+  }
+  const items = v.notes_video.split(' | ');
+  const box = el('div', 'nbox');
+  box.appendChild(el('div', 'nhead', 'Notes untuk video ini'));
+  const ul = el('ul', 'kurang'); items.forEach(t => ul.appendChild(el('li', '', t))); box.appendChild(ul);
+  card.appendChild(box);
+  if (v.catatan_tim || v.catatan_rekap) {
+    const n = el('div', 'vnotes');
+    if (v.catatan_tim) { n.appendChild(el('b', '', 'Catatan reviewer: ')); n.append(v.catatan_tim); }
+    if (v.catatan_tim && v.catatan_rekap) n.appendChild(document.createElement('br'));
+    if (v.catatan_rekap) { n.appendChild(el('b', '', 'Catatan rekap: ')); n.append(v.catatan_rekap); }
+    card.appendChild(n);
+  }
+  return card;
+}
+
+function drawCreator(cur) {
+  const body = document.getElementById('cr-body');
+  const lbd = dash.data('leaderboard');
+  drawPicker(lbd, cur);
+  if (!cur) { body.replaceChildren(el('p', 'cr-empty', 'Tap username di tabel Semua creator, atau pilih dari daftar di atas.')); return; }
+  const vd = dash.data('videos'), mt = dash.data('merchant_top'), ml = dash.data('merchant_lain'), ab = dash.data('absensi');
+  if (lbd.status !== 'ok') { body.replaceChildren(el('p', 'cr-empty dash-skeleton', '—')); return; }
+  const r = lbd.data.find(x => x.username === cur);
+  if (!r) { body.replaceChildren(el('p', 'cr-empty', 'Creator tidak ditemukan.')); return; }
+  const W = (f) => ({ 'data-source': 'leaderboard', 'data-field': f, 'data-where': 'username=' + enc(r.username) });
+  const mark = (e, f) => { Object.entries(W(f)).forEach(([k, v]) => e.setAttribute(k, v)); return e; };
+  body.textContent = '';
+
+  const top = el('div', 'cr-top');
+  const l = el('div');
+  l.appendChild(mark(el('h3', 'cr-name', r.username), 'username'));
+  const meta = el('div', 'cr-meta');
+  meta.append(mark(el('span', '', r.nama), 'nama'), ' · ', mark(el('span', '', r.domisili), 'domisili'), ' · ', mark(el('span', '', r.provinsi), 'provinsi'));
+  l.appendChild(meta);
+  const t = el('div', 'cr-total');
+  t.appendChild(el('div', 'lbl', 'Total poin'));
+  t.appendChild(mark(el('div', 'big', fmt(r.total)), 'total'));
+  top.append(l, t);
+  body.appendChild(top);
+
+  const ms = el('div', 'cr-missions');
+  ms.appendChild(missionCard('Mission 1 · Upload 15 video', r, 'm1_poin', fmt(r.m1_poin), 'm1_status', r.m1_status));
+  ms.appendChild(missionCard('Mission 2 · 5 Top Merchant', r, 'm2_poin', fmt(r.m2_poin), 'm2_status', r.m2_status));
+  ms.appendChild(missionCard('Mission 3 · 70% Dining GMV', r, 'm3_poin', fmt(r.m3_poin), 'm3_status', r.m3_status));
+  ms.appendChild(missionCard('Mission 4 · Meet Up', r, 'm4_poin', fmt(r.m4_poin), 'm4_status', r.m4_status));
+  ms.appendChild(missionCard('Submit tercepat', r, 'submit_tercepat', fmt(r.submit_tercepat), null, r.submit_tercepat ? 'Tercepat di ' + (r.submit_tercepat / 10) + ' dari 15 jadwal' : 'Belum jadi yang tercepat di jadwal mana pun'));
+  const bc = missionCard('Bonus video', r, 'bonus_poin', fmt(r.bonus_poin), null, '');
+  const bs = bc.querySelector('.st'); bs.textContent = '';
+  bs.append(mark(el('span', '', fmt(r.bonus_valid)), 'bonus_valid'), ' valid dari ', mark(el('span', '', fmt(r.bonus_submit)), 'bonus_submit'), ' disubmit');
+  ms.appendChild(bc);
+  body.appendChild(ms);
+  body.appendChild(mark(el('div', 'cr-note', r.catatan), 'catatan'));
+
+  const cols = el('div', 'cr-cols');
+  // attendance
+  const ac = el('div'); ac.appendChild(el('h3', '', 'Absensi Meet Up'));
+  const att = el('div', 'att');
+  const arow = ab.status === 'ok' ? ab.data.find(x => x.username === cur) : null;
+  [['mu1', 'MU1 · 11 Sep'], ['mu2', 'MU2 · 18 Sep'], ['mu3', 'MU3 · 25 Sep'], ['mu4', 'MU4 · 2 Okt'], ['mu5', 'MU5 · 16 Okt']].forEach(([f, lab]) => {
+    const s = el('span'); s.appendChild(el('div', 'lbl', lab));
+    const v = arow ? arow[f] : '—';
+    const vv = el('div', v === 'Hadir' ? 'ok' : v === 'Tidak hadir' ? 'bad' : 'muted', v);
+    if (arow) { vv.dataset.source = 'absensi'; vv.dataset.field = f; vv.dataset.where = 'username=' + enc(cur); }
+    s.appendChild(vv); att.appendChild(s);
+  });
+  ac.appendChild(att); cols.appendChild(ac);
+  // merchants
+  const mc = el('div'); mc.appendChild(el('h3', '', 'Top Merchant (Mission 2)'));
+  const mrows = mt.status === 'ok' ? mt.data.filter(x => x.username === cur) : [];
+  if (!mrows.length) mc.appendChild(el('div', 'lbl', 'Belum ada video di Top Merchant provinsinya.'));
+  else {
+    const tbl = el('table'); tbl.dataset.source = 'merchant_top'; tbl.dataset.rowKey = 'id';
+    const hr = tbl.createTHead().insertRow();
+    [['brand', 'Merchant'], ['video_dihitung', 'Video dihitung'], ['video_telat', 'Telat'], ['memenuhi', '≥2 video']].forEach(([f, tt]) => { const th = el('th', f === 'brand' || f === 'memenuhi' ? '' : 'n', tt); th.dataset.field = f; hr.appendChild(th); });
+    const tb = tbl.createTBody();
+    mrows.forEach(x => { const tr = tb.insertRow(); tr.dataset.key = x.id;
+      [['brand', ''], ['video_dihitung', 'n'], ['video_telat', 'n'], ['memenuhi', '']].forEach(([f, c]) => { const td = tr.insertCell(); td.className = c; td.textContent = typeof x[f] === 'number' ? fmt(x[f]) : x[f]; if (f === 'memenuhi') td.className = x[f] === 'Ya' ? 'ok' : 'warn'; }); });
+    mc.appendChild(tbl);
+  }
+  const others = ml.status === 'ok' ? ml.data.filter(x => x.username === cur) : [];
+  if (others.length) {
+    mc.appendChild(el('div', 'lbl', 'Merchant lain (tidak dihitung Mission 2):'));
+    const tg = el('div', 'tags'); tg.style.marginTop = '4px';
+    tg.dataset.source = 'merchant_lain';
+    others.forEach(x => tg.appendChild(el('span', '', x.brand + ' × ' + x.jumlah_video)));
+    mc.appendChild(tg);
+  }
+  cols.appendChild(mc);
+  body.appendChild(cols);
+
+  // videos
+  const vs = el('div'); vs.style.marginTop = 'var(--cds-gap-lg)';
+  const vh = el('div', 'tools'); vh.appendChild(el('h3', '', 'Video')); vh.firstChild.style.margin = '0 auto 0 0';
+  const all = vd.status === 'ok' ? vd.data.filter(x => x.username === cur) : [];
+  const nBad = all.filter(x => x.status !== 'Dihitung').length;
+  [['all', 'Semua (' + all.length + ')'], ['bad', 'Perlu perbaikan (' + nBad + ')'], ['wajib', 'Wajib'], ['bonus', 'Bonus']].forEach(([k, lab]) => {
+    const b = el('button', 'chipbtn', lab); b.type = 'button'; b.setAttribute('aria-pressed', String(window.LB.vfilter === k));
+    b.addEventListener('click', () => { window.LB.vfilter = k; drawCreator(dash.params().creator); });
+    vh.appendChild(b);
+  });
+  vs.appendChild(vh);
+  const list = el('div', 'vids');
+  if (vd.status !== 'ok') list.appendChild(el('div', 'dash-skeleton', '—'));
+  else {
+    const f = window.LB.vfilter;
+    const shown = all.filter(x => f === 'all' || (f === 'bad' && x.status !== 'Dihitung') || (f === 'wajib' && x.tipe === 'Wajib') || (f === 'bonus' && x.tipe === 'Bonus'));
+    if (!shown.length) list.appendChild(el('div', 'lbl', 'Tidak ada video untuk filter ini.'));
+    shown.forEach(v => list.appendChild(videoCard(v)));
+  }
+  vs.appendChild(list);
+  body.appendChild(vs);
+}
+
+function drawSV(vd) {
+  const st = window.LB.sv;
+  const sS = document.getElementById('sv-status'), sT = document.getElementById('sv-tipe'), sQ = document.getElementById('sv-q');
+  if (!sS.dataset.wired) {
+    sS.dataset.wired = '1';
+    sS.addEventListener('change', () => { st.status = sS.value; drawSV(dash.data('videos')); });
+    sT.addEventListener('change', () => { st.tipe = sT.value; drawSV(dash.data('videos')); });
+    sQ.addEventListener('input', () => { st.q = sQ.value.toLowerCase(); drawSV(dash.data('videos')); });
+  }
+  const tb = document.querySelector('#sv-table tbody'); tb.textContent = '';
+  const cnt = document.getElementById('sv-count');
+  if (vd.status !== 'ok') { cnt.textContent = ''; return; }
+  const rows = vd.data.filter(v => (!st.status || v.status === st.status) && (!st.tipe || v.tipe === st.tipe) &&
+    (!st.q || (v.username + ' ' + v.merchant + ' ' + v.brand + ' ' + v.notes_video).toLowerCase().includes(st.q)));
+  cnt.textContent = fmt(rows.length) + ' baris';
+  rows.forEach(v => {
+    const tr = tb.insertRow(); tr.dataset.key = v.id;
+    const c = (txt, cls) => { const td = tr.insertCell(); if (cls) td.className = cls; if (txt !== undefined) td.textContent = txt; return td; };
+    c(undefined).appendChild(userBtn(v.username));
+    c(v.video); c(v.jadwal); c(v.submit); c(v.merchant);
+    c(undefined).appendChild(el('span', 'pill ' + statusCls(v.status), v.status));
+    c(v.checklist_lolos); c(v.poin); c(v.notes_video, 'wrap');
+    const lt = c(undefined);
+    if (v.link !== '—') { const a = el('a', '', v.link); a.href = v.link; a.target = '_blank'; a.rel = 'noopener'; lt.appendChild(a); } else lt.textContent = v.link;
+  });
+}
+
+function tipFor(box) { let t = box.querySelector('.tip'); if (!t) { t = el('div', 'tip'); t.hidden = true; box.appendChild(t); } return t; }
+function placeTip(box, tip, ev) {
+  const r = box.getBoundingClientRect(); let x = ev.clientX - r.left + 12; const y = ev.clientY - r.top + 12;
+  tip.hidden = false; const w = tip.offsetWidth; if (x + w > r.width) x = Math.max(0, ev.clientX - r.left - w - 12); tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+
+function drawWeek(d) {
+  const box = document.getElementById('wk-chart'); box.querySelectorAll('svg,.fail').forEach(n => n.remove());
+  const leg = document.getElementById('wk-legend'); leg.textContent = '';
+  if (d.status === 'error') { failLine(box); return; }
+  if (d.status !== 'ok') return;
+  const keys = [['valid', 'Valid'], ['telat', 'Telat'], ['butuh_improvement', 'Butuh improvement']];
+  const color = k => ({ valid: 'var(--sb-mint)', telat: 'var(--sb-sun)', butuh_improvement: 'var(--sb-tomato)' })[k];
+  keys.forEach(([k, t]) => { const s = el('span'); const w = el('i', 'sw'); w.style.background = color(k); s.append(w, t); leg.appendChild(s); });
+  const rows = d.data.map(r => ({ week: r.week, valid: +r.valid, telat: +r.telat, butuh_improvement: +r.butuh_improvement }));
+  const Wd = Math.max(280, box.clientWidth), H = 220, m = { t: 8, r: 8, b: 26, l: 34 };
+  const x = d3.scaleBand(rows.map(r => r.week), [m.l, Wd - m.r]).padding(0.35);
+  const bw = Math.min(x.bandwidth(), 56), off = (x.bandwidth() - bw) / 2;
+  const st = d3.stack().keys(keys.map(k => k[0]))(rows);
+  const y = d3.scaleLinear([0, d3.max(rows, r => r.valid + r.telat + r.butuh_improvement)], [H - m.b, m.t]).nice();
+  const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${Wd} ${H}`);
+  svg.append('g').selectAll('line').data(y.ticks(4)).join('line').attr('x1', m.l).attr('x2', Wd - m.r).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(0)).attr('font-size', null).attr('font-family', null)
+    .call(g => g.select('.domain').remove()).selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickSize(0)).attr('font-size', null).attr('font-family', null)
+    .call(g => g.select('.domain').attr('stroke', 'var(--cds-chart-axis)')).selectAll('text').attr('dy', '1.1em').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
+  const tip = tipFor(box);
+  svg.append('g').selectAll('g').data(st).join('g').attr('fill', s => color(s.key)).selectAll('rect').data(s => s.map(v => ({ v, key: s.key }))).join('rect')
+    .attr('x', o => x(o.v.data.week) + off).attr('width', bw).attr('y', o => y(o.v[1])).attr('height', o => Math.max(0, y(o.v[0]) - y(o.v[1]) - 1)).attr('rx', 3)
+    .on('mousemove', (ev, o) => {
+      const r = o.v.data; tip.textContent = '';
+      tip.appendChild(el('div', 't', r.week));
+      keys.forEach(([k, t]) => { const l = el('div'); const w = el('i', 'sw'); w.style.background = color(k); l.append(w, `${t}: ${fmt(r[k])}`); tip.appendChild(l); });
+      placeTip(box, tip, ev);
+    }).on('mouseleave', () => { tip.hidden = true; });
+}
+
+function drawCk(d) {
+  const box = document.getElementById('ck-chart'); box.querySelectorAll('svg,.fail').forEach(n => n.remove());
+  if (d.status === 'error') { failLine(box); return; }
+  if (d.status !== 'ok') return;
+  const rows = d.data.map(r => ({ c: r.checklist, n: +r.video_butuh_improvement })).filter(r => r.n > 0);
+  const Wd = Math.max(280, box.clientWidth), bar = 18, gap = 8, H = rows.length * (bar + gap) + 8;
+  const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${Wd} ${H}`);
+  const probe = svg.append('g').selectAll('text').data(rows).join('text').style('font-size', 'var(--cds-font-size-caption)').text(r => r.c);
+  const lw = d3.max(probe.nodes(), n => n.getComputedTextLength()) + 10; probe.remove();
+  const x = d3.scaleLinear([0, d3.max(rows, r => r.n)], [lw, Wd - 36]);
+  const tip = tipFor(box);
+  const g = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (r, i) => `translate(0,${i * (bar + gap) + 4})`);
+  g.append('text').attr('x', lw - 8).attr('y', bar / 2).attr('dy', '.35em').attr('text-anchor', 'end').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text(r => r.c);
+  g.append('rect').attr('x', lw).attr('height', bar).attr('width', r => Math.max(2, x(r.n) - lw)).attr('rx', 4).attr('fill', (r, i) => i < 2 ? 'var(--sb-tomato)' : 'var(--cds-chart-muted)')
+    .on('mousemove', (ev, r) => { tip.textContent = ''; tip.append(el('div', 't', r.c), el('div', '', fmt(r.n) + ' video butuh improvement')); placeTip(box, tip, ev); })
+    .on('mouseleave', () => { tip.hidden = true; });
+  g.append('text').attr('x', r => x(r.n) + 6).attr('y', bar / 2).attr('dy', '.35em').attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').style('font-variant-numeric', 'tabular-nums').text(r => fmt(r.n));
+}
+
+let firstDraw = true;
+dash.onData(() => {
+  const lbd = dash.data('leaderboard');
+  const sm = dash.data('ringkasan');
+  document.querySelectorAll('#angka [data-source="ringkasan"]').forEach(e => {
+    if (sm.status === 'ok' && sm.data[0]) { e.textContent = fmt(sm.data[0][e.dataset.field]); e.classList.remove('dash-skeleton'); }
+    else if (sm.status === 'error') { e.textContent = '—'; e.classList.remove('dash-skeleton'); }
+    else e.textContent = '—';
+  });
+  drawAll(lbd);
+  drawCreator(dash.params().creator || null);
+  drawSV(dash.data('videos'));
+  drawWeek(dash.data('status_week')); drawCk(dash.data('checklist_gagal'));
+  if (firstDraw && lbd.status === 'ok') {
+    firstDraw = false;
+    const named = document.getElementById(location.hash.slice(1));
+    if (named) named.scrollIntoView();
+  }
+});
+</script>
+
+</div>
+</body>
+</html>
